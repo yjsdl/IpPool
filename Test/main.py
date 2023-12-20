@@ -4,13 +4,17 @@
 # @file： main
 from typing import Union
 import uvicorn
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from pydantic import BaseModel
+
 app = FastAPI()
 
+
 @app.get('/')
-async def test():
+async def test(request: Request):
+    print(request.client.host)
     return {"Hello": "world"}
+
 
 @app.get("/items/{item_id}")
 async def read_item(item_id: int, q: Union[str, None] = None):
