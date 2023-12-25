@@ -167,6 +167,30 @@ class AsyncRedisDB:
             return await self._redis.execute_command(
                 'ZADD', table, scores, values)
 
+    async def zincrby(self, table, values, scores=1):
+        """
+        在table对应的有序集合中增加元素分数
+        :param table:
+        :param values:
+        :param scores:
+        :return:
+        """
+        if isinstance(values, list):
+            # scores数量需要与values相等
+            if not isinstance(scores, list):
+                scores = [scores] * len(values)
+            else:
+                assert len(values) == len(scores)
+            pipe = self._redis.pipeline()
+            pipe.multi()
+            for value, score in zip(values, scores):
+                await pipe.execute_command("ZINCRBY", table, score, value)
+            return await pipe.execute()
+        else:
+            return await self._redis.execute_command(
+                'ZINCRBY', table, scores, values)
+
+
     async def zscore(self, name, values):
         pass
 

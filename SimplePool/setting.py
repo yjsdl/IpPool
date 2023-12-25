@@ -23,11 +23,11 @@ REDIS_DB = env.int('REDIS_DB', env.int('REDIS_DB', 0))
 # proxy detection num, 代理i的分数
 PROXY_DETECTION_MAX = 100
 PROXY_DETECTION_MIN = 90
-PROXY_DETECTION_INIT = 10
+PROXY_DETECTION_INIT = 99
 
 # proxy exist num 代理ip的数量
 PROXY_NUMBER_MAX = 100
-PROXY_NUMBER_MIN = 0
+PROXY_NUMBER_MIN = 50
 
 # api
 API_HOST = env.str('API_HOST', '0.0.0.0')

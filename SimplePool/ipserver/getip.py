@@ -17,6 +17,7 @@ class GetIp:
         self.conn = AsyncRedisDB()
         self.url = setting.IP_LINK or None
         self.ip_max_count = setting.PROXY_NUMBER_MAX
+        # self.
 
     async def fetch(self, url: str = None):
         async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(ssl=False), trust_env=True) as session:
