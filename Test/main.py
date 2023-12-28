@@ -13,7 +13,7 @@ app = FastAPI()
 @app.get('/')
 async def test(request: Request):
     print(request.client.host)
-    return {"Hello": "world"}
+    return {"host": request.client.host, 'port': request.client.port}
 
 
 @app.get("/items/{item_id}")

@@ -109,6 +109,18 @@ class AsyncRedisDB:
         else:
             return await self._redis.sadd(table, values)
 
+    async def hset(self, table, values):
+        """
+        使用hash存储数据
+        :param table:
+        :param values:
+        :return:
+        """
+        return await self._redis.hset(table, mapping=values)
+
+    async def hgetall(self, table):
+        return await self._redis.hgetall(table)
+
     async def scard(self, table) -> int:
         """
         获取set中元素个数，类似于len
@@ -117,6 +129,25 @@ class AsyncRedisDB:
         :return: 集合中元素个数
         """
         return await self._redis.scard(table)
+
+    async def zcard(self, table) -> int:
+        """
+        返回已排序的集合中元素数量
+        :rtype: object
+        :param table:
+        :return: 集合中元素个数
+        """
+        return await self._redis.zcard(table)
+
+    async def zcount(self, table, score_min: ZScoreT, score_max: ZScoreT) -> int:
+        """
+        返回有序集合中分数处于min和max直接的元素数量
+        :param score_max:
+        :param score_min:
+        :param table:
+        :return:
+        """
+        return await self._redis.zcount(table, min=score_min, max=score_max)
 
     async def sismember(self, table, value) -> bool:
         """
@@ -190,9 +221,16 @@ class AsyncRedisDB:
             return await self._redis.execute_command(
                 'ZINCRBY', table, scores, values)
 
-
-    async def zscore(self, name, values):
-        pass
+    async def zscore(self, table, values):
+        if isinstance(values, list):
+            # scores数量需要与values相等
+            pipe = self._redis.pipeline()
+            pipe.multi()
+            for value in values:
+                await pipe.execute_command("ZSCORE", table, value)
+            return await pipe.execute()
+        else:
+            return await self._redis.execute_command("ZSCORE", table, values)
 
     async def zexists(
             self, name: str,
@@ -277,6 +315,31 @@ class AsyncRedisDB:
         else:
             result = await self._redis.zrangebyscore(
                 name, min=score_min, max=score_max, start=0, num=count,
+                **kwargs
+            )
+        return result
+
+    async def zrevrangebyscore(
+            self, name: str, score_min: ZScoreT, score_max: ZScoreT, count: int = None,
+            **kwargs
+    ):
+        """
+        返回score_min ~ score_max区间的的元素， 和zrangebyscore相反
+        :param name:
+        :param score_min:最大分数
+        :param score_max:最小分数
+        :param count: 整合start和num
+        :param kwargs:
+        :return:
+        """
+        if count is None:
+            result = await self._redis.zrevrangebyscore(
+                name, min=score_max, max=score_min,
+                **kwargs
+            )
+        else:
+            result = await self._redis.zrevrangebyscore(
+                name, min=score_max, max=score_min, start=0, num=count,
                 **kwargs
             )
         return result
