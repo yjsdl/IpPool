@@ -3,15 +3,20 @@
 # @Author：LiuYiJie
 # @file： ipapi
 import uvicorn
-from fastapi import FastAPI, Request
-from SimplePool.db.redisdb import AsyncRedisDB
+import base64
+from fastapi import FastAPI, Request, Query
+from SimplePool.db.ipdb import ProxyMongo
+from urllib.parse import quote
+
 
 app = FastAPI()
+app.debug = 'debug'
+
 
 
 def get_conn():
-    _redis = AsyncRedisDB()
-    return _redis
+    _db = ProxyMongo()
+    return _db
 
 
 @app.get('/')
@@ -19,12 +24,30 @@ async def index():
     return "Welcome to SimplePool"
 
 
-@app.get('/get_ip/{num}/')
-async def get_ip(num: int):
-    redis = get_conn()
-    res = await redis.zrangebyscore('IPss', score_min=100, score_max=100, count=num)
-    return res
+@app.get('/get/v1')
+async def get():
+    db = get_conn()
+    res = await db.get_proxies('IPss')
+    res_ip = [ip['_id'] for ip in res]
+    return res_ip
+
+
+@app.get('/getIp/v1/')
+async def get_ip(num: int = 0):
+    db = get_conn()
+    res = await db.get_proxies('IPss', limit=num)
+    res_ip = [ip['_id'] for ip in res]
+    return res_ip
+
+
+@app.get('/getAreaIp/v1/')
+async def get_area(place: str = Query(...), num: int = 0):
+    db = get_conn()
+    condition = {'city': {"$regex": place}}
+    res = await db.get_proxies('IPss', condition=condition, limit=num)
+    res_ip = [ip['_id'] for ip in res]
+    return res_ip
 
 
 if __name__ == '__main__':
-    uvicorn.run('ipapi:app', host='127.0.0.1', port=8080)
+    uvicorn.run('ipapi:app', host='0.0.0.0', port=8080)

@@ -14,7 +14,9 @@ from typing import Union, List
 class VerifyProxy:
     def __init__(self):
         self._db = ProxyMongo()
-        self.concurrency = 1
+        self.concurrency = 5
+        self.verify_counts = 0
+        self.verify_success_counts = 0
         self.semaphore = asyncio.Semaphore(value=self.concurrency)
 
     async def fetch(self, proxies: dict):
@@ -53,18 +55,22 @@ class VerifyProxy:
                 ver_proxies = await self.change_proxy_message(proxies, success=True)
                 res_score = await self._db.update_proxy(table='IPss', value=ver_proxies)
                 logger.info(f'{proxies}验证成功')
+                self.verify_counts += 1
+                self.verify_success_counts += 1
                 return res_score
             else:
                 # 验证失败，更新次数
                 ver_proxies = await self.change_proxy_message(proxies, success=False)
                 res_score = await self._db.update_proxy(table='IPss', value=ver_proxies)
                 logger.info(f'{proxies}验证error')
+                self.verify_counts += 1
                 return res_score
         else:
             # 验证失败，更新次数
             ver_proxies = await self.change_proxy_message(proxies, success=False)
             res_score = await self._db.update_proxy(table='IPss', value=ver_proxies)
             logger.info(f'{proxies}验证error')
+            self.verify_counts += 1
             return res_score
 
     async def init_run(self, proxies: Union[List[dict], dict]):
@@ -72,14 +78,12 @@ class VerifyProxy:
         初始化获取代理进行验证,单个代理进行验证，不从库里取代理
         :return:
         """
-        loop = asyncio.get_event_loop()
-
         if isinstance(proxies, list):
             tasks = []
             for proxy in proxies:
                 task = asyncio.create_task(self.fetch(proxy))
                 tasks.append(task)
-            loop.run_until_complete(asyncio.gather(*tasks))
+            await asyncio.gather(*tasks)
         else:
             await self.fetch(proxies)
 
@@ -87,12 +91,13 @@ class VerifyProxy:
         # 验证所有代理
         logger.info('start verify proxy......')
         # 获取库里所有代理
-        all_proxies = await self._db.get_proxies(table='IPss')
+        all_proxies = await self._db.get_proxies(table='IPss', limit=2)
         tasks = []
         for proxy in all_proxies:
             task = asyncio.create_task(self.fetch(proxy))
             tasks.append(task)
         await asyncio.gather(*tasks)
+        logger.info(f'本次验证{self.verify_counts}条代理, 成功{self.verify_success_counts}条')
         # 执行完成后，删除分数小于最小分数的代理
         # await self._db.clear_proxies(table='IPss')
 
@@ -102,4 +107,4 @@ class VerifyProxy:
 
 
 VerifyIp = VerifyProxy()
-# VerifyIp.main()
+VerifyIp.main()

@@ -8,6 +8,7 @@
 from SimplePool.db.redisdb import AsyncRedisDB
 from SimplePool.db.mongodb import AsyncMongoDB
 from SimplePool import setting
+from typing import Tuple, Union
 
 
 class ProxyOperate(AsyncRedisDB):
@@ -135,7 +136,7 @@ class ProxyMongo(AsyncMongoDB):
         if isinstance(values, list):
             insert_proxies = list()
             # 查询所有的代理，防止重复数据
-            condition = condition or {'_id': 1}
+            condition = condition or {}, {'_id': 1}
             res = await self.find(coll_name=table, condition=condition)
             for one in values:
                 if one['_id'] not in res:
@@ -160,9 +161,9 @@ class ProxyMongo(AsyncMongoDB):
         condition = {'_id': value['_id']}
         return await self.update(coll_name=table, condition=condition, data=value)
 
-    async def get_proxies(self, table, condition: dict = None, limit: int = 1):
+    async def get_all_proxies(self, table, condition: dict = None, limit: int = 0):
         """
-        查询代理
+        查询所有代理用来验证
         :param limit: 结果数量
         :param table:
         :param condition: 条件
@@ -170,7 +171,39 @@ class ProxyMongo(AsyncMongoDB):
         """
         return await self.find(coll_name=table, condition=condition, limit=limit)
 
-    async def count_proxies(self, coll_name: str, condition: dict = None):
+    async def get_proxies(self, table, condition: Union[Tuple, dict] = None, limit: int = 1):
+        """
+        返回可用代理,
+        :param table:
+        :param condition: 根据条件查询，成功率，地区，时间
+        :param limit:
+        :return:
+        """
+        # 默认，随机返回一条成功率90以上的
+        if not condition:
+            condition = {"verify_success_rate": {"$gt": 101}}
+            # 使用聚合管道来进行随机抽样
+            limit = limit or 1
+            pipeline = [
+                {'$match': condition},
+                {"$sample": {"size": limit}}
+            ]
+            results = await self.find_condition(coll_name=table, pipeline=pipeline, limit=limit)
+        # 有条件，默认返回符合条件的
+        else:
+            condition = {"$and": [condition, {"verify_success_rate": {"$gt": 101}}]}
+            limit = limit or 1
+            pipeline = [
+                {'$match': condition},
+                {"$sample": {"size": limit}}
+            ]
+            results = await self.find_condition(coll_name=table, pipeline=pipeline, limit=limit)
+        # 啥都没有，随便返回一条
+        if results:
+
+            return await self.find(coll_name=table, condition=condition, limit=limit)
+
+    async def count_proxies(self, coll_name: str, condition: dict = None) -> int:
         """
         查询当前库里有多少代理
         :param coll_name:

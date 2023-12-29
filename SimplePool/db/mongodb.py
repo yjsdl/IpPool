@@ -5,6 +5,7 @@
 
 import asyncio
 from urllib import parse
+from typing import Union, Tuple
 
 from pymongo.errors import (
     DuplicateKeyError, BulkWriteError
@@ -203,7 +204,7 @@ class AsyncMongoDB:
             return False
         return result.modified_count
 
-    async def find(self, coll_name: str, condition: dict = None, limit: int = 0, **kwargs):
+    async def find(self, coll_name: str, condition: Union[Tuple, dict] = None, limit: int = 0, **kwargs):
         """
         :param coll_name: 集合名
         :param condition: 查询条件 {'i': {'$lt': 4}}
@@ -214,9 +215,9 @@ class AsyncMongoDB:
         collection = self.get_collection(coll_name)
         results = []
         if limit == 1:
-            results.append(await collection.find_one(condition))
+            return await collection.find_one(condition)
         elif limit > 1:
-            cursor = await collection.find(condition)
+            cursor = collection.find(condition)
             for document in await cursor.to_list(length=limit):
                 results.append(document)
         else:
@@ -224,6 +225,19 @@ class AsyncMongoDB:
             async for document in find_results:
                 results.append(document)
         return results
+
+    async def find_condition(self, coll_name: str, pipeline: Union[Tuple, list] = None, limit: int = 0, **kwargs):
+        """
+        :param coll_name: 集合名
+        :param pipeline: 管道,根据条件查询，随机返回指定数量代理
+        :param limit: 结果数量
+        :return: 插入影响的行数
+        """
+        pipeline = {} if pipeline is None else pipeline
+        collection = self.get_collection(coll_name)
+        results = await collection.aggregate(pipeline).to_list(limit)
+        return results
+
 
     async def count(self, coll_name: str, condition: dict):
         """
