@@ -4,7 +4,7 @@
 # @file： verifyip
 import aiohttp
 import asyncio
-import datetime
+from datetime import datetime, timedelta
 from SimplePool.db.ipdb import ProxyMongo
 import SimplePool.setting as setting
 from SimplePool.log_code.log import logger
@@ -14,7 +14,7 @@ from typing import Union, List
 class VerifyProxy:
     def __init__(self):
         self._db = ProxyMongo()
-        self.concurrency = 5
+        self.concurrency = 10
         self.verify_counts = 0
         self.verify_success_counts = 0
         self.semaphore = asyncio.Semaphore(value=self.concurrency)
@@ -26,6 +26,7 @@ class VerifyProxy:
                 try:
                     async with session.request('get', url=setting.VERIFY_BASE_URL, proxy='', timeout=3) as response:
                         res = await response.read()
+                        ress = response.status
                         res = {'status': 200, 'host': '49.68.68.197', 'port': ''}
                 except Exception as e:
                     logger.info(f'{proxy}, {e}')
@@ -34,17 +35,20 @@ class VerifyProxy:
                     return await self.parse(proxies, res)
 
     async def change_proxy_message(self, proxies, success: bool = True) -> dict:
+        now_time = datetime.now()
         if success:
             proxies['verify_num'] = proxies['verify_num'] + 1
             proxies['verify_success_num'] = proxies['verify_success_num'] + 1
-            proxies['verify_success_rate'] = (proxies['verify_success_num'] / proxies['verify_num']) * 100
-            proxies['update_time'] = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            proxies['verify_success_rate'] = float((proxies['verify_success_num'] / proxies['verify_num']) * 100)
+            proxies['verify_time'] = now_time.strftime('%Y-%m-%d %H:%M:%S')
+            proxies['next_verify_time'] = (now_time + timedelta(seconds=30)).strftime('%Y-%m-%d %H:%M:%S')
             return proxies
         else:
             proxies['verify_num'] = proxies['verify_num'] + 1
             proxies['verify_error_num'] = proxies['verify_error_num'] + 1
-            proxies['verify_success_rate'] = (proxies['verify_success_num'] / proxies['verify_num']) * 100
-            proxies['update_time'] = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            proxies['verify_success_rate'] = float((proxies['verify_success_num'] / proxies['verify_num']) * 100)
+            proxies['verify_time'] = now_time.strftime('%Y-%m-%d %H:%M:%S')
+            proxies['next_verify_time'] = (now_time + timedelta(seconds=30)).strftime('%Y-%m-%d %H:%M:%S')
             return proxies
 
     async def parse(self, proxies, response):
@@ -87,24 +91,27 @@ class VerifyProxy:
         else:
             await self.fetch(proxies)
 
+    async def deal_over_proxy(self):
+        """
+        删除过期时间的代理
+        :return:
+        """
+        pass
+
     async def run(self):
-        # 验证所有代理
+        """
+        # 根据验证时间，验证所有代理
+        :return:
+        """
         logger.info('start verify proxy......')
-        # 获取库里所有代理
-        all_proxies = await self._db.get_proxies(table='IPss', limit=2)
+        now_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        condition = {"next_verify_time": {"$lte": now_time}}
+        # 获取库里小于当前时间的代理
+        verify_proxies = await self._db.get_all_proxies(table='IPss', condition=condition)
         tasks = []
-        for proxy in all_proxies:
+        for proxy in verify_proxies:
             task = asyncio.create_task(self.fetch(proxy))
             tasks.append(task)
         await asyncio.gather(*tasks)
         logger.info(f'本次验证{self.verify_counts}条代理, 成功{self.verify_success_counts}条')
-        # 执行完成后，删除分数小于最小分数的代理
-        # await self._db.clear_proxies(table='IPss')
 
-    def main(self):
-        loop = asyncio.get_event_loop()
-        loop.run_until_complete(self.run())
-
-
-VerifyIp = VerifyProxy()
-VerifyIp.main()

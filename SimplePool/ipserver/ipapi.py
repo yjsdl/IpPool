@@ -24,18 +24,11 @@ async def index():
     return "Welcome to SimplePool"
 
 
-@app.get('/get/v1')
-async def get():
-    db = get_conn()
-    res = await db.get_proxies('IPss')
-    res_ip = [ip['_id'] for ip in res]
-    return res_ip
-
-
 @app.get('/getIp/v1/')
 async def get_ip(num: int = 0):
     db = get_conn()
-    res = await db.get_proxies('IPss', limit=num)
+    display_name = {'_id': 1}
+    res = await db.get_proxies('IPss', display_name=display_name, limit=num)
     res_ip = [ip['_id'] for ip in res]
     return res_ip
 
@@ -44,7 +37,8 @@ async def get_ip(num: int = 0):
 async def get_area(place: str = Query(...), num: int = 0):
     db = get_conn()
     condition = {'city': {"$regex": place}}
-    res = await db.get_proxies('IPss', condition=condition, limit=num)
+    display_name = {'_id': 1}
+    res = await db.get_proxies('IPss', condition=condition, display_name=display_name, limit=num)
     res_ip = [ip['_id'] for ip in res]
     return res_ip
 

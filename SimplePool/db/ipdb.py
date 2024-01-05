@@ -124,10 +124,11 @@ class ProxyMongo(AsyncMongoDB):
     def __init__(self):
         super(ProxyMongo, self).__init__()
 
-    async def add_proxy(self, table: str, values, condition: dict = None):
+    async def add_proxy(self, table: str, values, condition: dict = None, display_name:dict=None):
         """
         判断库里是否有当前ip，有，不增加，
         :param condition:
+        :param display_name:
         :param table: 表名
         :param values:代理ip
         :return:返回成功插入的数量
@@ -136,11 +137,16 @@ class ProxyMongo(AsyncMongoDB):
         if isinstance(values, list):
             insert_proxies = list()
             # 查询所有的代理，防止重复数据
-            condition = condition or {}, {'_id': 1}
-            res = await self.find(coll_name=table, condition=condition)
+            condition = condition or {}
+            display_name = display_name or {'_id': 1}
+            res = await self.find(coll_name=table, condition=condition, display_name=display_name)
             for one in values:
-                if one['_id'] not in res:
+                new_id = {'_id': one}
+                if new_id not in res:
                     insert_proxies.append(one)
+                # 如果库里已存在，覆盖数据
+                else:
+                    res = await self.update_proxy(table=table, value=one)
             num, inserted_ids = await self.add_batch(coll_name=table, datas=insert_proxies)
             add_num += num
         else:
@@ -149,6 +155,9 @@ class ProxyMongo(AsyncMongoDB):
             if not res:
                 num = await self.add(coll_name=table, data=values)
                 add_num += num
+            # 如果库里已存在，覆盖数据
+            else:
+                res = await self.update_proxy(table=table, value=values)
         return add_num
 
     async def update_proxy(self, table: str, value: dict):
@@ -169,48 +178,45 @@ class ProxyMongo(AsyncMongoDB):
         :param condition: 条件
         :return:
         """
+        condition = {} if condition is None else condition
         return await self.find(coll_name=table, condition=condition, limit=limit)
 
-    async def get_proxies(self, table, condition: Union[Tuple, dict] = None, limit: int = 1):
+    async def get_proxies(self, table, condition: Union[Tuple, dict] = None, display_name: dict = None, limit: int = 1):
         """
         返回可用代理,
+        :param display_name: 指定返回的字段
         :param table:
         :param condition: 根据条件查询，成功率，地区，时间
-        :param limit:
+        :param limit:条数
         :return:
         """
+        display_name = {} if display_name is None else display_name
         # 默认，随机返回一条成功率90以上的
         if not condition:
-            condition = {"verify_success_rate": {"$gt": 101}}
+            condition = {"verify_success_rate": {"$gte": 90}}
             # 使用聚合管道来进行随机抽样
             limit = limit or 1
-            pipeline = [
-                {'$match': condition},
-                {"$sample": {"size": limit}}
-            ]
-            results = await self.find_condition(coll_name=table, pipeline=pipeline, limit=limit)
+            results = await self.find_condition(coll_name=table, condition=condition, display_name=display_name,
+                                                limit=limit)
         # 有条件，默认返回符合条件的
         else:
-            condition = {"$and": [condition, {"verify_success_rate": {"$gt": 101}}]}
+            condition = {"$and": [condition, {"verify_success_rate": {"$gte": 90}}]}
             limit = limit or 1
-            pipeline = [
-                {'$match': condition},
-                {"$sample": {"size": limit}}
-            ]
-            results = await self.find_condition(coll_name=table, pipeline=pipeline, limit=limit)
+            results = await self.find_condition(coll_name=table, condition=condition, display_name=display_name,
+                                                limit=limit)
         # 啥都没有，随便返回一条
-        if results:
+        if not results:
+            results = await self.find_condition(coll_name=table, display_name=display_name, limit=limit)
+        return results
 
-            return await self.find(coll_name=table, condition=condition, limit=limit)
-
-    async def count_proxies(self, coll_name: str, condition: dict = None) -> int:
+    async def count_proxies(self, table: str, condition: dict = None) -> int:
         """
         查询当前库里有多少代理
-        :param coll_name:
+        :param table:
         :param condition:
         :return:
         """
         condition = {} if condition is None else condition
-        collection = self.get_collection(coll_name)
+        collection = self.get_collection(table)
         count = await collection.count_documents(condition)
         return count

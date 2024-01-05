@@ -36,7 +36,7 @@ PROXY_DETECTION_INIT = 99
 
 # proxy exist num 代理ip的数量
 PROXY_NUMBER_MAX = 100
-PROXY_NUMBER_MIN = 40
+PROXY_NUMBER_MIN = 50
 
 # api
 API_HOST = env.str('API_HOST', '0.0.0.0')

@@ -5,6 +5,8 @@
 """
 爬虫模块，用力增加代理商获取ip
 """
+import random
+
 from SimplePool.ipserver.crawler import downLoader
 import datetime
 
@@ -34,19 +36,18 @@ class ZhiMaSpider(metaclass=SpiderMeta):
 
     async def run(self):
         content = await downLoader.download(self.start_url)
-
         proxies = list()
         data = [
             {
                 "ip": "49.68.68.197",
-                "port": 33220,
+                "port": random.randint(1111, 6000),
                 "expire_time": "2019-05-24 08:58:31",
                 "city": "徐州市",
                 "isp": "电信"
             },
             {
                 "ip": "58.218.201.108",
-                "port": 2690,
+                "port": random.randint(1111, 6000),
                 "expire_time": "2019-05-24 08:55:31",
                 "city": "苏州市",
                 "isp": "电信",
@@ -59,21 +60,48 @@ class ZhiMaSpider(metaclass=SpiderMeta):
             detail = {'_id': proxy, 'city': one.get('city', ''), 'isp': one.get('isp', ''), 'verify_num': 0,
                       'verify_success_rate': 0, 'verify_success_num': 0, 'verify_error_num': 0,
                       'create_time': datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-                      'update_time': '', 'expire_time': one.get('expire_time', ''), 'proxy_source': '芝麻'}
+                      'verify_time': '', "next_verify_time": "", 'expire_time': one.get('expire_time', ''),
+                      'proxy_source': self.source_name}
             proxies.append(detail)
         # 验证新获取的ip，然后入库
         return proxies
 
 
-# class Daili666Spider(metaclass=SpiderMeta):
-#     start_url = 'http://www.66ip.cn/{}.html'
-#
-#     async def run(self, page_total=3):
-#         # urls = [self.start_url.format(i)
-#         #         for i in range(self._counter, self._counter + page_total)]
-#         # self.increment(page_total)
-#         ans = []
-#         return self.start_url
+class Daili666Spider(metaclass=SpiderMeta):
+    start_url = 'https://icanhazip.com/'
+    source_name = '66代理'
+
+    async def run(self):
+        content = await downLoader.download(self.start_url)
+        proxies = list()
+        data = [
+            {
+                "ip": "49.68.68.197",
+                "port": random.randint(1111, 6000),
+                "expire_time": "2019-05-24 08:58:31",
+                "city": "南京市",
+                "isp": "电信"
+            },
+            {
+                "ip": "58.218.201.108",
+                "port": random.randint(1111, 6000),
+                "expire_time": "2019-05-24 08:55:31",
+                "city": "上海市",
+                "isp": "移动",
+                "outip": "219.136.47.161",
+            }
+        ]
+        # data = content['data']
+        for one in data:
+            proxy = f"{one['ip']}:{one['port']}"
+            detail = {'_id': proxy, 'city': one.get('city', ''), 'isp': one.get('isp', ''), 'verify_num': 0,
+                      'verify_success_rate': 0, 'verify_success_num': 0, 'verify_error_num': 0,
+                      'create_time': datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                      'verify_time': '', "next_verify_time": "", 'expire_time': one.get('expire_time', ''),
+                      'proxy_source': self.source_name}
+            proxies.append(detail)
+        # 验证新获取的ip，然后入库
+        return proxies
 #
 #
 # class KuaidailiSpider(metaclass=SpiderMeta):

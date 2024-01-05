@@ -204,40 +204,51 @@ class AsyncMongoDB:
             return False
         return result.modified_count
 
-    async def find(self, coll_name: str, condition: Union[Tuple, dict] = None, limit: int = 0, **kwargs):
+    async def find(self, coll_name: str, condition: Union[Tuple, dict] = None, display_name: dict = None,
+                   limit: int = 0, **kwargs):
         """
+        :param display_name: 返回的字段
         :param coll_name: 集合名
         :param condition: 查询条件 {'i': {'$lt': 4}}
         :param limit: 结果数量
         :return: 插入影响的行数
         """
         condition = {} if condition is None else condition
+        display_name = {} if display_name is None else display_name
         collection = self.get_collection(coll_name)
         results = []
         if limit == 1:
-            return await collection.find_one(condition)
+            results.append(await collection.find_one(condition, display_name))
+            return results
         elif limit > 1:
-            cursor = collection.find(condition)
+            cursor = collection.find(condition, display_name)
             for document in await cursor.to_list(length=limit):
                 results.append(document)
         else:
-            find_results = collection.find(condition)
+            find_results = collection.find(condition, display_name)
             async for document in find_results:
                 results.append(document)
         return results
 
-    async def find_condition(self, coll_name: str, pipeline: Union[Tuple, list] = None, limit: int = 0, **kwargs):
+    async def find_condition(self, coll_name: str, condition: Union[Tuple, dict] = None, display_name: dict = None,
+                             limit: int = 0, **kwargs):
         """
+        :param display_name: 指定返回的字段
         :param coll_name: 集合名
-        :param pipeline: 管道,根据条件查询，随机返回指定数量代理
+        :param condition: 管道,根据条件查询，随机返回指定数量代理
         :param limit: 结果数量
         :return: 插入影响的行数
         """
-        pipeline = {} if pipeline is None else pipeline
+        condition = {} if condition is None else condition
+        displayName = {} if display_name is None else display_name
+        pipeline = [
+            {'$match': condition},
+            {"$project": displayName},
+            {"$sample": {"size": limit}}
+        ]
         collection = self.get_collection(coll_name)
         results = await collection.aggregate(pipeline).to_list(limit)
         return results
-
 
     async def count(self, coll_name: str, condition: dict):
         """
