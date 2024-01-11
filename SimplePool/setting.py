@@ -5,6 +5,7 @@
 """
 配置文件
 """
+import os
 from os.path import dirname, abspath, join
 from environs import Env
 
@@ -13,6 +14,8 @@ env.read_env()
 
 ROOT_DIR = dirname(dirname(abspath(__file__)))
 LOG_DIR = join(ROOT_DIR, env.str('LOG_DIR', 'logs'))
+if not os.path.exists(LOG_DIR):
+    os.makedirs(LOG_DIR)
 
 # redis配置
 REDIS_HOST = env.str("REDIS_HOST", env.str('REDIS_HOST', '127.0.0.1'))
@@ -43,8 +46,6 @@ API_HOST = env.str('API_HOST', '0.0.0.0')
 API_PORT = env.int('API_PORT', 8080)
 API_THREADED = env.bool('API_THREADED', True)
 
-# ip代理商
-IP_LINK = ''
 
 # 验证代理地址
 VERIFY_BASE_URL = 'https://icanhazip.com/'

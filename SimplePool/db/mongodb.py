@@ -148,7 +148,7 @@ class AsyncMongoDB:
         collection = self.get_collection(coll_name)
         count = await collection.count_documents(condition)
         try:
-            result = await collection.delete_one(condition)
+            result = await collection.delete_many(condition)
         except Exception as e:
             logger.warning(
                 """

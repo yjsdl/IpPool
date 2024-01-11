@@ -34,7 +34,8 @@ class VerifyProxy:
                 finally:
                     return await self.parse(proxies, res)
 
-    async def change_proxy_message(self, proxies, success: bool = True) -> dict:
+    @staticmethod
+    async def change_proxy_message(proxies, success: bool = True) -> dict:
         now_time = datetime.now()
         if success:
             proxies['verify_num'] = proxies['verify_num'] + 1
@@ -96,7 +97,10 @@ class VerifyProxy:
         删除过期时间的代理
         :return:
         """
-        pass
+        now_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        condition = {"expire_time": {"$lte": now_time}}
+        count = await self._db.delete_proxies(table='IPss', condition=condition)
+        return count
 
     async def run(self):
         """
@@ -113,5 +117,6 @@ class VerifyProxy:
             task = asyncio.create_task(self.fetch(proxy))
             tasks.append(task)
         await asyncio.gather(*tasks)
-        logger.info(f'本次验证{self.verify_counts}条代理, 成功{self.verify_success_counts}条')
-
+        # logger.info(f'本次验证{self.verify_counts}条代理, 成功{self.verify_success_counts}条')
+        delete_count = await self.deal_over_proxy()
+        logger.info(f'本次验证{self.verify_counts}条代理, 成功{self.verify_success_counts}条, 本次删除{delete_count}条过期代理')

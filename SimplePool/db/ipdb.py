@@ -220,3 +220,15 @@ class ProxyMongo(AsyncMongoDB):
         collection = self.get_collection(table)
         count = await collection.count_documents(condition)
         return count
+
+    async def delete_proxies(self, table:str, condition:dict = None):
+        """
+        删除库里超过过期时间的代理
+        :param table:
+        :param condition:
+        :return:
+        """
+        if condition is None:
+            raise ValueError("当前删除条件为空，error！！！！！")
+        delete_count = await self.delete(coll_name=table, condition=condition)
+        return delete_count

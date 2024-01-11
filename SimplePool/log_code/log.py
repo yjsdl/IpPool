@@ -5,71 +5,99 @@
 """
 设置日志
 """
-import coloredlogs
+import os
+from os.path import dirname, abspath, join
 import logging
+from logging import handlers
+import datetime
+import SimplePool.setting as setting
 
 
-class Logger:
+class ColoredFormatter(logging.Formatter):
+    COLORS = {
+        "black": "\033[90m",  # 黑色
+        "red": "\033[91m",  # 红色
+        "green": "\033[92m",  # 绿色
+        "yellow": "\033[93m",  # 黄色
+        "blue": "\033[94m",  # 蓝色
+        "purple": "\033[95m",  # 紫色
+        "dgreen": "\033[96m",  # 深绿
+        "white": "\033[97m",  # 白色
+        "reset": '\033[0m',  # 默认
+    }
 
-    @staticmethod
-    def get_Logger():
-        # 生成器
-        log_obj = logging.getLogger()
-        log_obj.setLevel(logging.DEBUG)
+    DEFAULT_STYLES = {
+        "spam": "green",
+        "debug": "green",
+        "verbose": "blue",
+        "info": "green",
+        "warning": "yellow",
+        "success": "green",
+        "error": "red",
+        "critical": "red",
 
-        # 给处理器设置输出日志格式
-        formatter = logging.Formatter(
-            '%(threadName)-10s - %(asctime)s - %(module)s - %(funcName)s:line:%(lineno)d - %(levelname)s - %(message)s')
+        "asctime": "green",
+        "message": "green",
+        "lineno": "purple",
+        "threadName": "red",
+        "module": "red",
+        "levelname": "white",
+        "name": "blue",
+    }
 
-        # 打印到控制台
-        level_styles = coloredlogs.DEFAULT_LEVEL_STYLES.copy()
-        coloredlogs.install(level='DEBUG', level_styles=level_styles,
-                            fmt='%(threadName)-10s - %(asctime)s - %(module)s - %(funcName)s:line:%(lineno)d - %(levelname)s - %(message)s')
+    def __init__(self, styles=None):
+        super().__init__()
+        self.styles = styles or self.DEFAULT_STYLES
 
-        # 处理器, 创建文件handler
-        file_handler = logging.FileHandler('log_file.log')
-        file_handler.setLevel(logging.DEBUG)
-        file_handler.setFormatter(formatter)
-        # 记录器
-        log_obj.addHandler(file_handler)
-        # 移除默认StreamHandler
-        log_obj.removeHandler(logging.StreamHandler())
+    def set_color(self, msg: str = None):
+        msg = msg or 'threadName - asctime - pathname - module: - funcName: - lineno - levelname - message'
+        return ' - '.join(
+            map(lambda part: f"{self.COLORS.get(self.styles.get(part, 'reset'))}{{}}{self.COLORS['reset']}",
+                msg.split(' - ')))
 
-        return log_obj
+    def format(self, record):
+        levelname = record.levelname
+        asctime = datetime.datetime.fromtimestamp(record.created).strftime('%Y-%m-%d %H:%M:%S')
+        threadName = record.threadName
+        pathname = record.pathname
+        lineno = record.lineno
+        funcName = record.funcName
+        module = record.module
+        message = super().format(record)
 
+        color_msg = self.set_color(
+            'threadName - asctime - pathname - module - funcName - lineno - levelname - message')
 
-class setLog:
-    __log0 = None
-
-    @property
-    def log(self):
-        if self.__class__.__log0 is None:
-            self.__class__.__log0 = Logger.get_Logger()
-        return self.__class__.__log0
-
-    @property
-    def debug(self):
-        return self.log.debug
-
-    @property
-    def info(self):
-        return self.log.info
-
-    @property
-    def warning(self):
-        return self.log.warning
-
-    @property
-    def error(self):
-        return self.log.error
-
-    @property
-    def critical(self):
-        return self.log.critical
-
-    @property
-    def exception(self):
-        return self.log.exception
+        colored_message = color_msg.format(threadName, asctime, pathname, module, funcName, lineno, levelname, message)
+        return colored_message
 
 
-logger = setLog()
+class ColoredConsoleHandler(logging.StreamHandler):
+    def __init__(self, formatter=None):
+        super().__init__()
+        self.formatter = formatter or ColoredFormatter()
+
+
+def setup_logger():
+    log_obj = logging.getLogger()
+    log_obj.setLevel(logging.DEBUG)
+
+    # 控制台输出
+    console_handler = ColoredConsoleHandler()
+    log_obj.addHandler(console_handler)
+
+    LOG_DIR = setting.LOG_DIR
+
+    log_file = join(LOG_DIR, 'log_file.log')
+
+    # 文件输出，每天一个文件
+    file_handler = handlers.TimedRotatingFileHandler(log_file, when="midnight", interval=1, backupCount=7)
+    file_handler.setFormatter(logging.Formatter(
+        '%(threadName)-10s - %(asctime)s - %(module)s - %(funcName)s:line:%(lineno)d - %(levelname)s - %(message)s'))
+    log_obj.addHandler(file_handler)
+
+    return log_obj
+
+
+logger = setup_logger()
+
