@@ -1,1 +1,0 @@
-node webpack_mixer.js -l loader.js -m chunk-libs.b0c22c98.js -o webpack_out.js

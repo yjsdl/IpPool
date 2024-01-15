@@ -1,1 +1,0 @@
-node webpack_mixer.js -l home.min.js -o webpack_out.js
