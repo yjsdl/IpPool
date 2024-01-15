@@ -1,0 +1,46 @@
+{
+    "name": "hook",
+    "version": "1.0.0",
+    "description": "自定义钩子",
+    "manifest_version": 3,
+
+    "icons": {
+        "48": "icon.png",
+        "96": "icon.png"
+    },
+    "action": {
+        "default_icon": "icon.png",
+        "default_title": "按时吃饭，照顾好自己",
+        "default_popup": "popup.html"
+    },
+    "content_scripts": [
+        {
+            "matches": [
+                "http://*/*", "https://*/*", "<all_urls>"
+            ],
+            "js": [
+                "static/js/main.js"
+            ],
+            "run_at": "document_start"
+        }
+    ],
+    "background": {
+        "service_worker": "static/js/background.js"
+    },
+    "permissions":[
+        "contextMenus",
+        "tabs",
+        "notifications",
+        "webRequest",
+        "storage",
+        "cookies",
+        "scripting"
+  ],
+  "web_accessible_resources":[
+    {
+        "resources": ["/static/js/hookcookie.js"],
+        "matches":["<all_urls>"]
+    }
+  ]
+      
+}

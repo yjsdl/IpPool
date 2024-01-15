@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+</head>
+<body>
+<!--getElementById  根据id名获取某些元素-->
+<!--    <div id="time">2022-7-15</div>-->
+<!--    <script>-->
+<!--        var timere = document.getElementById('time')-->
+<!--            返回一个element对象-->
+<!--        console.log(timere)-->
+<!--        console.dir(timere)-->
+<!--    </script>-->
+
+<!--getElementsByTagName    根据元素名称获取某些元素-->
+    <ul>
+        <li>这是练习getelementsbyTagName</li>
+        <li>这是练习getelementsbyTagName</li>
+        <li>这是练习getelementsbyTagName</li>
+        <li>这是练习getelementsbyTagName</li>
+        <li>这是练习getelementsbyTagName</li>
+    </ul>
+    <ol>
+        <li>这是练习5</li>
+        <li>这是练习6</li>
+        <li>这是练习7</li>
+        <li>这是练习8</li>
+        <li>这是练习9</li>
+    </ol>
+    <script>
+        // var lis = document.getElementsByTagName('li');
+        // console.log(lis);
+        // console.log(lis[0]);
+
+        var ol = document.getElementsByTagName('ol');
+        console.log(ol);
+        console.log(ol[0].getElementsByTagName('li'));
+    </script>
+</body>
+</html>
