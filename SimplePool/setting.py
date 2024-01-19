@@ -14,8 +14,7 @@ env.read_env()
 
 ROOT_DIR = dirname(dirname(abspath(__file__)))
 LOG_DIR = join(ROOT_DIR, env.str('LOG_DIR', 'logs'))
-if not os.path.exists(LOG_DIR):
-    os.makedirs(LOG_DIR)
+os.makedirs(LOG_DIR, exist_ok=True)
 
 # redis配置
 REDIS_HOST = env.str("REDIS_HOST", env.str('REDIS_HOST', '127.0.0.1'))
@@ -26,7 +25,8 @@ REDIS_DB = env.int('REDIS_DB', env.int('REDIS_DB', 0))
 # MongoDB配置
 MONGODB_HOST = '127.0.0.1'
 MONGODB_PORT = 27017
-MONGODB_DB = 'kccompany'
+MONGODB_DB = 'IPS'
+MONGODB_COLL = 'ip_proxies'
 MONGODB_USERNAME = None
 MONGODB_PASSWORD = None
 MONGODB_URL = None  # 如果需要使用密码, 需要使用url: mongodb://username:password@host:port

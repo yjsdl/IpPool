@@ -108,6 +108,7 @@ class AsyncMongoDB:
         collection = self.get_collection(coll_name)
         inserted_ids = []
         affect_count = 0
+        up_count = 0
         try:
             affect_count = len(datas)
             result = await collection.insert_many(datas, ordered=False)
@@ -117,16 +118,18 @@ class AsyncMongoDB:
                 error: %s
                 """ % dup)
         except BulkWriteError as bulk_write_e:
-            logger.error(bulk_write_e)
+            # 获取插入失败的代理
             write_errors = bulk_write_e.details.get('writeErrors')
-            # 从报错中取错误的行数，根据一下规则重新入库
             for write_error in write_errors:
+                # 判断是否是因为唯一索引插入失败
                 if write_error.get('code') == 11000:
                     original_doc = write_error.get('op')  # 插入的数据
-                    filter_query = {}
-                    update_query = {}
-                    # await collection.update_one(filter=filter_query, update=update_query)
-
+                    ip_id = original_doc.get('third_id')
+                    filter_query = {'ip_id': ip_id}
+                    update_query = {'$set': original_doc}
+                    up_result = await collection.update_one(filter=filter_query, update=update_query)
+                    affect_count -= 1
+                    up_count = up_result.modified_count
         except Exception as e:
             logger.error(
                 """
@@ -135,7 +138,7 @@ class AsyncMongoDB:
         else:
             inserted_ids = result.inserted_ids
             affect_count = len(inserted_ids)
-        return affect_count, inserted_ids
+        return affect_count, inserted_ids, up_count
 
     async def delete(self, coll_name: str, condition: dict = None):
         """

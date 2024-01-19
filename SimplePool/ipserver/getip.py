@@ -28,7 +28,7 @@ class GetIp:
         :return:
         """
         condition = {"verify_success_rate": {"$gte": 90}}
-        return True if await self._db.count_proxies(table='IPss',
+        return True if await self._db.count_proxies(table=setting.MONGODB_COLL,
                                                     condition=condition) > self.proxy_num_min else False
 
     async def run(self):
@@ -41,12 +41,12 @@ class GetIp:
             if available_count:
                 logger.info(f'当前库里分数90以上大于40，本次获取{self.proxy_num}条代理')
                 break
-            time.sleep(0.2)
+            time.sleep(0.5)
             tasks = []
             for spider in spiders:
                 task = asyncio.create_task(spider.run())
                 tasks.append(task)
             results = await asyncio.gather(*tasks)
             for result in results:
-                res = await self._db.add_proxy(table='IPss', values=result)
-                self.proxy_num += res
+                affect_count, inserted_ids, up_count = await self._db.add_proxy(table=setting.MONGODB_COLL, values=result)
+                self.proxy_num += affect_count

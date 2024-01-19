@@ -6,12 +6,11 @@ import uvicorn
 import base64
 from fastapi import FastAPI, Request, Query
 from SimplePool.db.ipdb import ProxyMongo
-from urllib.parse import quote
+import SimplePool.setting as setting
 
 
 app = FastAPI()
 app.debug = 'debug'
-
 
 
 def get_conn():
@@ -28,7 +27,7 @@ async def index():
 async def get_ip(num: int = 0):
     db = get_conn()
     display_name = {'_id': 1}
-    res = await db.get_proxies('IPss', display_name=display_name, limit=num)
+    res = await db.get_proxies(setting.MONGODB_COLL, display_name=display_name, limit=num)
     res_ip = [ip['_id'] for ip in res]
     return res_ip
 
@@ -38,7 +37,7 @@ async def get_area(place: str = Query(...), num: int = 0):
     db = get_conn()
     condition = {'city': {"$regex": place}}
     display_name = {'_id': 1}
-    res = await db.get_proxies('IPss', condition=condition, display_name=display_name, limit=num)
+    res = await db.get_proxies(setting.MONGODB_COLL, condition=condition, display_name=display_name, limit=num)
     res_ip = [ip['_id'] for ip in res]
     return res_ip
 

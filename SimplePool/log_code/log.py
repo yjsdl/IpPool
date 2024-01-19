@@ -10,16 +10,15 @@ from os.path import dirname, abspath, join
 import logging
 from logging import handlers
 import datetime
-import SimplePool.setting as setting
 
 
 class ColoredFormatter(logging.Formatter):
     COLORS = {
-        "black": "\033[90m",  # 黑色
+        "black": "\033[40m",  # 黑色
         "red": "\033[91m",  # 红色
         "green": "\033[92m",  # 绿色
         "yellow": "\033[93m",  # 黄色
-        "blue": "\033[94m",  # 蓝色
+        "blue": "\033[34m",  # 蓝色
         "purple": "\033[95m",  # 紫色
         "dgreen": "\033[96m",  # 深绿
         "white": "\033[97m",  # 白色
@@ -27,49 +26,49 @@ class ColoredFormatter(logging.Formatter):
     }
 
     DEFAULT_STYLES = {
-        "spam": "green",
-        "debug": "green",
-        "verbose": "blue",
-        "info": "green",
-        "warning": "yellow",
-        "success": "green",
-        "error": "red",
-        "critical": "red",
+        "spam": COLORS['green'],
+        "DEBUG": COLORS['blue'],
+        "verbose": COLORS['blue'],
+        "INFO": COLORS['white'],
+        "WARNING": COLORS['yellow'],
+        "success": COLORS['green'],
+        "ERROR": COLORS['red'],
+        "CRITICAL": COLORS['red'],
+        "EXCEPTION": COLORS['red'],
 
-        "asctime": "green",
-        "message": "green",
-        "lineno": "purple",
-        "threadName": "red",
-        "module": "red",
-        "levelname": "white",
-        "name": "blue",
+        "asctime": COLORS['green'],
+        "message": COLORS['green'],
+        "lineno": COLORS['purple'],
+        "threadName": COLORS['red'],
+        "module": COLORS['red'],
+        "levelname": COLORS['white'],
+        "name": COLORS['blue'],
+        "default": COLORS['blue'],
     }
 
     def __init__(self, styles=None):
         super().__init__()
         self.styles = styles or self.DEFAULT_STYLES
 
-    def set_color(self, msg: str = None):
-        msg = msg or 'threadName - asctime - pathname - module: - funcName: - lineno - levelname - message'
-        return ' - '.join(
-            map(lambda part: f"{self.COLORS.get(self.styles.get(part, 'reset'))}{{}}{self.COLORS['reset']}",
-                msg.split(' - ')))
+    def set_color(self, levelname: str = None):
+        return self.styles.get(levelname, "reset")
 
     def format(self, record):
         levelname = record.levelname
-        asctime = datetime.datetime.fromtimestamp(record.created).strftime('%Y-%m-%d %H:%M:%S')
-        threadName = record.threadName
-        pathname = record.pathname
-        lineno = record.lineno
-        funcName = record.funcName
-        module = record.module
+        asctime = f"{self.styles.get('default')}{datetime.datetime.fromtimestamp(record.created).strftime('%Y-%m-%d %H:%M:%S')}{self.COLORS['reset']}"
+        threadName = f"{self.styles.get('default')}{record.threadName}{self.COLORS['reset']}"
+        pathname = f"{self.styles.get('default')}{record.pathname}{self.COLORS['reset']}"
+        lineno = f"{self.styles.get('default')}{record.lineno}{self.COLORS['reset']}"
+        funcName = f"{self.styles.get('default')}{record.funcName}{self.COLORS['reset']}"
+        module = f"{self.styles.get('default')}{record.module}{self.COLORS['reset']}"
         message = super().format(record)
 
-        color_msg = self.set_color(
-            'threadName - asctime - pathname - module - funcName - lineno - levelname - message')
+        levelcolor = self.set_color(levelname)
+        levelname = f"{levelcolor}{levelname}{self.COLORS['reset']}"
+        message = f"{levelcolor}{message}{self.COLORS['reset']}"
 
-        colored_message = color_msg.format(threadName, asctime, pathname, module, funcName, lineno, levelname, message)
-        return colored_message
+        formatted_message = f"{threadName} - {asctime} - {levelname} - {pathname} - {module}:{funcName}:{lineno} - {message}"
+        return formatted_message
 
 
 class ColoredConsoleHandler(logging.StreamHandler):
@@ -86,14 +85,17 @@ def setup_logger():
     console_handler = ColoredConsoleHandler()
     log_obj.addHandler(console_handler)
 
-    LOG_DIR = setting.LOG_DIR
-
+    root_dir = dirname(dirname(abspath(__file__)))
+    LOG_DIR = join(root_dir, 'logs')
+    os.makedirs(LOG_DIR, exist_ok=True)
     log_file = join(LOG_DIR, 'log_file.log')
 
     # 文件输出，每天一个文件
-    file_handler = handlers.TimedRotatingFileHandler(log_file, when="midnight", interval=1, backupCount=7)
+    file_handler = handlers.TimedRotatingFileHandler(log_file, when="midnight", interval=1, backupCount=7,
+                                                     encoding='utf-8')
+    file_handler.suffix = "%Y-%m-%d.log"
     file_handler.setFormatter(logging.Formatter(
-        '%(threadName)-10s - %(asctime)s - %(module)s - %(funcName)s:line:%(lineno)d - %(levelname)s - %(message)s'))
+        '%(threadName)-10s - %(asctime)s - %(module)s - %(funcName)s:%(lineno)d - %(levelname)s - %(message)s'))
     log_obj.addHandler(file_handler)
 
     return log_obj

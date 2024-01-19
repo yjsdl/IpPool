@@ -124,41 +124,18 @@ class ProxyMongo(AsyncMongoDB):
     def __init__(self):
         super(ProxyMongo, self).__init__()
 
-    async def add_proxy(self, table: str, values, condition: dict = None, display_name:dict=None):
+    async def add_proxy(self, table: str, values: Union[list, dict]):
         """
         判断库里是否有当前ip，有，不增加，
-        :param condition:
-        :param display_name:
         :param table: 表名
         :param values:代理ip
         :return:返回成功插入的数量
         """
-        add_num = 0
         if isinstance(values, list):
-            insert_proxies = list()
-            # 查询所有的代理，防止重复数据
-            condition = condition or {}
-            display_name = display_name or {'_id': 1}
-            res = await self.find(coll_name=table, condition=condition, display_name=display_name)
-            for one in values:
-                new_id = {'_id': one}
-                if new_id not in res:
-                    insert_proxies.append(one)
-                # 如果库里已存在，覆盖数据
-                else:
-                    res = await self.update_proxy(table=table, value=one)
-            num, inserted_ids = await self.add_batch(coll_name=table, datas=insert_proxies)
-            add_num += num
+            affect_count, inserted_ids, up_count = await self.add_batch(coll_name=table, datas=values)
         else:
-            condition = {'_id': values['_id']}
-            res = await self.find(coll_name=table, condition=condition)
-            if not res:
-                num = await self.add(coll_name=table, data=values)
-                add_num += num
-            # 如果库里已存在，覆盖数据
-            else:
-                res = await self.update_proxy(table=table, value=values)
-        return add_num
+            affect_count, inserted_ids, up_count = await self.add_batch(coll_name=table, datas=[values])
+        return affect_count, inserted_ids, up_count
 
     async def update_proxy(self, table: str, value: dict):
         """

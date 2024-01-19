@@ -21,15 +21,15 @@ class VerifyProxy:
 
     async def fetch(self, proxies: dict):
         async with self.semaphore:
-            proxy = proxies['_id']
+            proxy = proxies['ip_id']
             async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(ssl=False), trust_env=True) as session:
                 try:
                     async with session.request('get', url=setting.VERIFY_BASE_URL, proxy='', timeout=3) as response:
-                        res = await response.read()
+                        res = await response.json()
                         ress = response.status
                         res = {'status': 200, 'host': '49.68.68.197', 'port': ''}
                 except Exception as e:
-                    logger.info(f'{proxy}, {e}')
+                    logger.error(f'验证代理{proxy}失败, 失败原因为{e}')
                     res = {'status': 400, 'host': '', 'port': ''}
                 finally:
                     return await self.parse(proxies, res)
@@ -55,10 +55,10 @@ class VerifyProxy:
     async def parse(self, proxies, response):
         # 请求成功不代理ip可用，还需判断ip是否相同,ip相同验证成功
         if response.get('status', '') == 200:
-            if response.get('host') in proxies['_id']:
+            if response.get('host') in proxies['ip_id']:
                 # 验证成功，更新次数
                 ver_proxies = await self.change_proxy_message(proxies, success=True)
-                res_score = await self._db.update_proxy(table='IPss', value=ver_proxies)
+                res_score = await self._db.update_proxy(table=setting.MONGODB_COLL, value=ver_proxies)
                 logger.info(f'{proxies}验证成功')
                 self.verify_counts += 1
                 self.verify_success_counts += 1
@@ -66,14 +66,14 @@ class VerifyProxy:
             else:
                 # 验证失败，更新次数
                 ver_proxies = await self.change_proxy_message(proxies, success=False)
-                res_score = await self._db.update_proxy(table='IPss', value=ver_proxies)
+                res_score = await self._db.update_proxy(table=setting.MONGODB_COLL, value=ver_proxies)
                 logger.info(f'{proxies}验证error')
                 self.verify_counts += 1
                 return res_score
         else:
             # 验证失败，更新次数
             ver_proxies = await self.change_proxy_message(proxies, success=False)
-            res_score = await self._db.update_proxy(table='IPss', value=ver_proxies)
+            res_score = await self._db.update_proxy(table=setting.MONGODB_COLL, value=ver_proxies)
             logger.info(f'{proxies}验证error')
             self.verify_counts += 1
             return res_score
@@ -99,7 +99,7 @@ class VerifyProxy:
         """
         now_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         condition = {"expire_time": {"$lte": now_time}}
-        count = await self._db.delete_proxies(table='IPss', condition=condition)
+        count = await self._db.delete_proxies(table=setting.MONGODB_COLL, condition=condition)
         return count
 
     async def run(self):
@@ -109,14 +109,13 @@ class VerifyProxy:
         """
         logger.info('start verify proxy......')
         now_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        # 库里小于当前时间的代理,才开始验证
         condition = {"next_verify_time": {"$lte": now_time}}
-        # 获取库里小于当前时间的代理
-        verify_proxies = await self._db.get_all_proxies(table='IPss', condition=condition)
+        verify_proxies = await self._db.get_all_proxies(table=setting.MONGODB_COLL, condition=condition)
         tasks = []
         for proxy in verify_proxies:
             task = asyncio.create_task(self.fetch(proxy))
             tasks.append(task)
         await asyncio.gather(*tasks)
-        # logger.info(f'本次验证{self.verify_counts}条代理, 成功{self.verify_success_counts}条')
         delete_count = await self.deal_over_proxy()
         logger.info(f'本次验证{self.verify_counts}条代理, 成功{self.verify_success_counts}条, 本次删除{delete_count}条过期代理')
